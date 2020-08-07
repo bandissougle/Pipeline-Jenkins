@@ -16,13 +16,12 @@ pipeline {
       }
      }
      steps { 
-      sh label: '', script: '''mvn clean compile
-      -Dhttps.protocols=TLSv1.2
-      -Dmaven.repo.local=/root/.m2/repository
-      -Dorg.slf4j.simpleLogger.log.org.apache.maven.cli.transfer.Slf4jMavenTransferListener=WARN
-      -Dorg.slf4j.simpleLogger.showDateTime=true
-      -Djava.awt.headless=true
-      --batch-mode --errors --fail-at-end --show-version -DinstallAtEnd=true -DdeployAtEnd=true'''
+      sh "mvn clean compile -Dhttps.protocols=TLSv1.2 \
+      -Dmaven.repo.local=/root/.m2/repository \
+      -Dorg.slf4j.simpleLogger.log.org.apache.maven.cli.transfer.Slf4jMavenTransferListener=WARN \
+      -Dorg.slf4j.simpleLogger.showDateTime=true \
+      -Djava.awt.headless=true \
+      --batch-mode --errors --fail-at-end --show-version -DinstallAtEnd=true -DdeployAtEnd=true"
      }
     } 
   }
