@@ -1,7 +1,7 @@
 pipeline {
   agent any
   environment{
-    SONARQUBE_URL = "http://172.22.100.22"
+    SONARQUBE_URL = "http://localhost"
     SONARQUBE_PORT = "9000"
   }
   stages {
@@ -100,7 +100,7 @@ pipeline {
           }
           steps {
             sh 'mvn javadoc:javadoc'
-            step([$class: 'JavadocArchiver', javadocDir: './**/target/site/apidocs', keepAll: 'true'])
+            step([$class: 'JavadocArchiver', javadocDir: '**/target/site/apidocs', keepAll: 'true'])
           }
         }
         stage('SonarQube'){
