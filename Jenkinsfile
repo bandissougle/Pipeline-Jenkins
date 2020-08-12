@@ -115,16 +115,16 @@ pipeline {
             sh " mvn sonar:sonar -Dsonar.host.url=$SONARQUBE_URL:$SONARQUBE_PORT"
           }
         }
-        post{
-          always{
-            junit testResults: '**/target/surefire-reports/TEST-*.xml'
-            recordIssues enabledForFailure: true, tools: [mavenConsole(), java(), javaDoc()]
-            recordIssues enabledForFailure: true, tool: checkStyle()
-            recordIssues enabledForFailure: true, tool: spotBugs()
-            recordIssues enabledForFailure: true, tool: cpd(pattern: '**/target/cpd.xml')
-            recordIssues enabledForFailure: true, tool: findBugs(pattern: '**/target/findbugsXml.xml', useRankAsPriority:  true)
-            recordIssues enabledForFailure: true, tool: pmdParser(pattern: '**/target/pmd.xml')
-          }
+      }
+      post{
+        always{
+          junit testResults: '**/target/surefire-reports/TEST-*.xml'
+          recordIssues enabledForFailure: true, tools: [mavenConsole(), java(), javaDoc()]
+          recordIssues enabledForFailure: true, tool: checkStyle()
+          recordIssues enabledForFailure: true, tool: spotBugs()
+          recordIssues enabledForFailure: true, tool: cpd(pattern: '**/target/cpd.xml')
+          recordIssues enabledForFailure: true, tool: findBugs(pattern: '**/target/findbugsXml.xml', useRankAsPriority:  true)
+          recordIssues enabledForFailure: true, tool: pmdParser(pattern: '**/target/pmd.xml')
         }
       }
     }
