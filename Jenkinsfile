@@ -1,5 +1,9 @@
 pipeline {
   agent any
+  environment{
+    SONARQUBE_URL = "http://172.22.100.22"
+    SONARQUBE_PORT = "9000"
+  }
   stages {
     stage('SCM') {
       steps {
@@ -72,5 +76,57 @@ pipeline {
         }
       }
     } 
+    stage('Code Quality Analysis'){
+      parallel{
+        stage('Analysis'){
+          agent {
+            docker {
+            image 'maven:3.6.0-jdk-8-alpine'
+            args '-v /root/.m2/repository:/root/.m2/repository'
+            reuseNode true
+            }
+          }
+          steps{
+            sh "mvn --batch-mode -V -U -e checkstyle:checkstyle pmd:pmd pmd:cpd findbugs:findbugs spotbugs:spotbugs"
+          }
+        }
+        stage('JavaDoc'){
+          agent {
+            docker {
+            image 'maven:3.6.0-jdk-8-alpine'
+            args '-v /root/.m2/repository:/root/.m2/repository'
+            reuseNode true
+            }
+          }
+          steps {
+            sh 'mvn javadoc:javadoc'
+            step([$class: 'JavadocArchiver', javadocDir: './**/target/site/apidocs', keepAll: 'true'])
+          }
+        }
+        stage('SonarQube'){
+          agent{
+            docker{
+              image 'maven:3.6.0-jdk-8-alpine'
+              args "-v /root/.m2/repository:/root/.m2/repository"
+              reuseNode true
+            }
+          }
+          steps{
+            sh " mvn sonar:sonar -Dsonar.host.url=$SONARQUBE_URL:$SONARQUBE_PORT"
+          }
+        }
+        post{
+          always{
+            junit testResults: '**/target/surefire-reports/TEST-*.xml'
+            recordIssues enabledForFailure: true, tools: [mavenConsole(), java(), javaDoc()]
+            recordIssues enabledForFailure: true, tool: checkStyle()
+            recordIssues enabledForFailure: true, tool: spotBugs()
+            recordIssues enabledForFailure: true, tool: cpd(pattern: '**/target/cpd.xml')
+            recordIssues enabledForFailure: true, tool: findBugs(pattern: '**/target/findbugsXml.xml', useRankAsPriority:  true)
+            recordIssues enabledForFailure: true, tool: pmdParser(pattern: '**/target/pmd.xml')
+          }
+        }
+      }
+    }
   }
 }
