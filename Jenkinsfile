@@ -78,7 +78,7 @@ pipeline {
     } 
     stage('Code Quality Analysis'){
       parallel{
-        stage('Analysis'){
+        stage('PMD') {
           agent {
             docker {
             image 'maven:3.6.0-jdk-8-alpine'
@@ -86,8 +86,10 @@ pipeline {
             reuseNode true
             }
           }
-          steps{
-            sh "mvn --batch-mode -V -U -e checkstyle:checkstyle pmd:pmd pmd:cpd findbugs:findbugs spotbugs:spotbugs"
+          steps {
+            sh ' mvn pmd:pmd'
+            // using pmd plugin
+            step([$class: 'PmdPublisher', pattern: '**/target/pmd.xml'])
           }
         }
         stage('JavaDoc'){
