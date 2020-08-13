@@ -76,58 +76,18 @@ pipeline {
         }
       }
     } 
-    stage('Code Quality Analysis'){
-      parallel{
-        stage('PMD') {
-          agent {
-            docker {
-            image 'maven:3.6.0-jdk-8-alpine'
-            args '-v /root/.m2/repository:/root/.m2/repository'
-            reuseNode true
-            }
-          }
-          steps {
-            sh ' mvn pmd:pmd'
-            // using pmd plugin
-            step([$class: 'PmdPublisher', pattern: '**/target/pmd.xml'])
-          }
-        }
-        stage('JavaDoc'){
-          agent {
-            docker {
-            image 'maven:3.6.0-jdk-8-alpine'
-            args '-v /root/.m2/repository:/root/.m2/repository'
-            reuseNode true
-            }
-          }
-          steps {
-            sh 'mvn javadoc:javadoc'
-            step([$class: 'JavadocArchiver', javadocDir: '**/target/site/apidocs', keepAll: 'true'])
-          }
-        }
-        stage('SonarQube'){
-          agent{
-            docker{
-              image 'maven:3.6.0-jdk-8-alpine'
-              args "-v /root/.m2/repository:/root/.m2/repository"
-              reuseNode true
-            }
-          }
-          steps{
-            sh " mvn sonar:sonar -Dsonar.host.url=$SONARQUBE_URL:$SONARQUBE_PORT"
-          }
+    stage('PMD') {
+      agent {
+        docker {
+          image 'maven:3.6.0-jdk-8-alpine'
+          args '-v /root/.m2/repository:/root/.m2/repository'
+          reuseNode true
         }
       }
-      post{
-        always{
-          junit testResults: '**/target/surefire-reports/TEST-*.xml'
-          recordIssues enabledForFailure: true, tools: [mavenConsole(), java(), javaDoc()]
-          recordIssues enabledForFailure: true, tool: checkStyle()
-          recordIssues enabledForFailure: true, tool: spotBugs()
-          recordIssues enabledForFailure: true, tool: cpd(pattern: '**/target/cpd.xml')
-          recordIssues enabledForFailure: true, tool: findBugs(pattern: '**/target/findbugsXml.xml', useRankAsPriority:  true)
-          recordIssues enabledForFailure: true, tool: pmdParser(pattern: '**/target/pmd.xml')
-        }
+      steps {
+        sh ' mvn pmd:pmd'
+        // using pmd plugin
+        step([$class: 'PmdPublisher', pattern: '**/target/pmd.xml'])
       }
     }
   }
