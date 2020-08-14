@@ -1,10 +1,8 @@
 pipeline {
   agent any
   environment{
-    SONARQUBE_URL = "http://localhost"
+    SONARQUBE_URL = "localhost"
     SONARQUBE_PORT = "9000"
-    SONARQUBE_LOGIN = "admin"
-    SONARQUBE_PWD = "Ramatou93"
   }
   stages {
     stage('SCM') {
@@ -87,7 +85,7 @@ pipeline {
       }
      }
      steps {
-      sh " mvn sonar:sonar -Dsonar.host.url=$SONARQUBE_URL:$SONARQUBE_PORT -Dsonar.login=$SONARQUBE_LOGIN -Dsonar.password=$SONARQUBE_PWD"
+      sh "mvn sonar:sonar -Dsonar.host.url=$SONARQUBE_URL:$SONARQUBE_PORT"
      }
     }   
   }
