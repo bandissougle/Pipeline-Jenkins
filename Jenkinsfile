@@ -3,6 +3,8 @@ pipeline {
   environment{
     SONARQUBE_URL = "http://localhost"
     SONARQUBE_PORT = "9000"
+    SONARQUBE_LOGIN = "admin"
+    SONARQUBE_PWD = "Ramatou93"
   }
   stages {
     stage('SCM') {
@@ -76,28 +78,17 @@ pipeline {
         }
       }
     }  
-    stage ('Analysis') {
-      agent {
-        docker {
-        image 'maven:3.6.0-jdk-8-alpine'
-        args '-v /root/.m2/repository:/root/.m2/repository'
-        reuseNode true
-        }
+    stage('SonarQube') {
+     agent {
+      docker {
+       image 'maven:3.6.0-jdk-8-alpine'
+       args "-v /root/.m2/repository:/root/.m2/repository"
+       reuseNode true
       }
-      steps {
-        sh 'mvn --batch-mode -V -U -e checkstyle:checkstyle pmd:pmd pmd:cpd findbugs:findbugs spotbugs:spotbugs'
-      }
-      post {
-        always {
-          junit testResults: '**/target/surefire-reports/TEST-*.xml'
-
-          recordIssues enabledForFailure: true, tools: [mavenConsole(), java(), javaDoc()]
-          recordIssues enabledForFailure: true, tool: checkStyle()
-          recordIssues enabledForFailure: true, tool: spotBugs()
-          recordIssues enabledForFailure: true, tool: cpd(pattern: '**/target/cpd.xml')
-          recordIssues enabledForFailure: true, tool: pmdParser(pattern: '**/target/pmd.xml')
-        } 
-      }
+     }
+     steps {
+      sh " mvn sonar:sonar -Dsonar.host.url=$SONARQUBE_URL:$SONARQUBE_PORT -Dsonar.login=$SONARQUBE_LOGIN -Dsonar.password=$SONARQUBE_PWD"
+     }
     }   
   }
 }
