@@ -73,19 +73,18 @@ pipeline {
       }
     }  
     stage('SonarQube Analysis') {
+      environment {
+        scannerHome = tool 'SonarQubeScanner'
+      }
       when {
         anyOf { branch 'master'; branch 'develop' }
       }
-      agent {
-        docker {
-        image 'maven:3.6.0-jdk-8-alpine'
-        args '-v /root/.m2/repository:/root/.m2/repository'
-        reuseNode true
-        }
-      }
       steps {
         withSonarQubeEnv('SonarServer'){
-            sh 'mvn clean sonar:sonar'
+          sh "${scannerHome}/bin/sonar-scanner"
+        }
+        timeout(time: 10, unit: 'MINUTES') {
+            waitForQualityGate abortPipeline: true
         }
       }
     }   
