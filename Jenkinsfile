@@ -73,22 +73,9 @@ pipeline {
       }
     }  
     stage('SonarQube Analysis') {
-      when {
-        anyOf { branch 'master'; branch 'develop' }
-      }
-      agent {
-        docker {
-        image 'maven:3.6.0-jdk-8-alpine'
-        args '-v /root/.m2/repository:/root/.m2/repository'
-        reuseNode true
-        }
-      }
       steps {
-        withSonarQubeEnv('SonarServer'){
-          sh "mvn sonar:sonar"
-        }
-        timeout(time: 10, unit: 'MINUTES') {
-            waitForQualityGate abortPipeline: true
+        withSonarQubeEnv(credentialsId: 'a629e32b2f2fd312515e4a2953c04d0b32262952', installationName: 'SonarServer'){
+          sh 'mvn org.sonarsource.scanner.maven:sonar-maven-plugin:3.7.0.1746:sonar'
         }
       }
     }   
