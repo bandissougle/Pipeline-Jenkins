@@ -65,6 +65,16 @@ pipeline {
         archiveArtifacts '**/target/*.jar'
         }
       }
+    }
+    stage('Code Quality Check via SonarQube'){
+      steps{
+        withSonarQubeEnv("sonarqube-server"){
+          sh "/var/jenkins_home/sonar-scanner-3.4.0.1729/bin/sonar-scanner \
+          -Dsonar.sources=. \
+          -Dsonar.host.url=http://172.22.100.22:9000 \
+          -Dsonar.login=de82faa230659ab0ab2a617602879ce23e558642"
+        }
+      }
     }     
   }
 }
