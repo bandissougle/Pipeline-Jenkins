@@ -25,9 +25,6 @@ pipeline {
       }
     }
     stage('Tests Unitaires'){
-      when {
-        anyOf { branch 'master'; branch 'develop' }
-      }
       agent {
         docker {
         image 'maven:3.6.0-jdk-8-alpine'
@@ -50,9 +47,6 @@ pipeline {
       }
     }
     stage('Integration Tests') {
-      when {
-        anyOf { branch 'master'; branch 'develop' }
-      }
       agent {
         docker {
         image 'maven:3.6.0-jdk-8-alpine'
@@ -71,13 +65,6 @@ pipeline {
         archiveArtifacts '**/target/*.jar'
         }
       }
-    }  
-    stage('SonarQube Analysis') {
-      steps {
-        withSonarQubeEnv(credentialsId: 'a629e32b2f2fd312515e4a2953c04d0b32262952', installationName: 'SonarServer'){
-          sh 'mvn org.sonarsource.scanner.maven:sonar-maven-plugin:3.7.0.1746:sonar'
-        }
-      }
-    }   
+    }     
   }
 }
