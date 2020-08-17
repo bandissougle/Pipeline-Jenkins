@@ -67,13 +67,6 @@ pipeline {
       }
     }
     stage('Code Quality Check via SonarQube'){
-      agent {
-        docker {
-          image 'maven:3.6.0-jdk-8-alpine'
-          args "-v /root/.m2/repository:/root/.m2/repository"
-          reuseNode true
-        }
-      }
       steps{
         withSonarQubeEnv("sonarqube-server"){
           sh "mvn sonar:sonar -Dsonar.host.url=http://172.22.100.22:9000 \
