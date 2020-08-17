@@ -67,13 +67,6 @@ pipeline {
       }
     }
     stage('Code Quality Check via SonarQube'){
-      agent {
-        docker {
-          image 'maven:3.6.0-jdk-8-alpine'
-          args "-v /root/.m2/repository:/root/.m2/repository"
-          reuseNode true
-        }
-      }
       steps{
         withSonarQubeEnv("sonarqube-server"){
           sh "/var/jenkins_home/sonar-scanner-3.4.0.1729/bin/sonar-scanner \
