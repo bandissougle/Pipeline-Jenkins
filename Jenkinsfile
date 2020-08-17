@@ -73,7 +73,7 @@ pipeline {
           -Dsonar.projectKey=pipeline-jenkins \
           -Dsonar.sources=. \
           -Dsonar.host.url=http://172.22.100.22:9000 \
-          -Dsonar.login=de82faa230659ab0ab2a617602879ce23e558642"
+          -Dsonar.login=b43af443b842eda3063651b5c68115cb1a7c6b87"
         }
       }
     }     
