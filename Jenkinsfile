@@ -69,10 +69,7 @@ pipeline {
     stage('Code Quality Check via SonarQube'){
       steps{
         withSonarQubeEnv("sonarqube-server"){
-          sh "/var/jenkins_home/sonar-scanner-3.4.0.1729/bin/sonar-scanner \
-          -Dsonar.projectKey=pipeline-jenkins \
-          -Dsonar.sources=. \
-          -Dsonar.host.url=http://172.22.100.22:9000 \
+          sh "mvn sonar:sonar -Dsonar.host.url=http://172.22.100.22:9000 \
           -Dsonar.login=b43af443b842eda3063651b5c68115cb1a7c6b87"
         }
       }
