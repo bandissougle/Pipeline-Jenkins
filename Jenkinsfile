@@ -66,13 +66,40 @@ pipeline {
         }
       }
     }
-    stage('Code Quality Check via SonarQube'){
-      steps{
-        withSonarQubeEnv("sonarqube-server"){
-          sh "/var/jenkins_home/apache-maven-3.6.3/bin/mvn sonar:sonar -Dsonar.host.url=http://172.22.100.22:9000 \
-          -Dsonar.login=b43af443b842eda3063651b5c68115cb1a7c6b87"
+    stage('Code Analysis'){
+      parallel{
+        stage('Next Plugin Analysis'){
+          agent {
+            docker {
+            image 'maven:3.6.0-jdk-8-alpine'
+            args '-v /root/.m2/repository:/root/.m2/repository'
+            reuseNode true
+            }
+          }
+          steps{
+            sh 'mvn --batch-mode -V -U -e checkstyle:checkstyle pmd:pmd pmd:cpd findbugs:findbugs'
+          }
+          post{
+            always{
+              junit testResults: '**/target/surefire-reports/TEST-*.xml'
+
+              recordIssues enabledForFailure: true, tools: [mavenConsole(), java(), javaDoc()]
+              recordIssues enabledForFailure: true, tool: checkStyle(pattern: '**/target/checkstyle-result.xml')
+              recordIssues enabledForFailure: true, tool: cpd(pattern: '**/target/cpd.xml')
+              recordIssues enabledForFailure: true, tool: findBugs(pattern: '**/target/findbugsXml.xml')
+              recordIssues enabledForFailure: true, tool: pmdParser(pattern: '**/target/pmd.xml')
+            }
+          }
         }
+        stage('Code Quality Check via SonarQube'){
+          steps{
+            withSonarQubeEnv("sonarqube-server"){
+              sh "/var/jenkins_home/apache-maven-3.6.3/bin/mvn sonar:sonar -Dsonar.host.url=http://172.22.100.22:9000 \
+              -Dsonar.login=b43af443b842eda3063651b5c68115cb1a7c6b87"
+            }
+          }
+        }     
       }
-    }     
+    }
   }
 }
