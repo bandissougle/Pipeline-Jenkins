@@ -127,6 +127,13 @@ pipeline {
           filesByGlob = findFiles(glob: '**/target/*.jar');
           // Print some info from the artifact found
           echo "${filesByGlob[0].name} ${filesByGlob[0].path} ${filesByGlob[0].directory} ${filesByGlob[0].length} ${filesByGlob[0].lastModified}"
+          echo "${filesByGlob[1].name} ${filesByGlob[1].path} ${filesByGlob[1].directory} ${filesByGlob[1].length} ${filesByGlob[1].lastModified}"
+          echo "${filesByGlob[2].name} ${filesByGlob[2].path} ${filesByGlob[2].directory} ${filesByGlob[2].length} ${filesByGlob[2].lastModified}"
+          echo "${filesByGlob[3].name} ${filesByGlob[3].path} ${filesByGlob[3].directory} ${filesByGlob[3].length} ${filesByGlob[3].lastModified}"
+          echo "${filesByGlob[4].name} ${filesByGlob[4].path} ${filesByGlob[4].directory} ${filesByGlob[4].length} ${filesByGlob[4].lastModified}"
+          echo "${filesByGlob[5].name} ${filesByGlob[5].path} ${filesByGlob[5].directory} ${filesByGlob[5].length} ${filesByGlob[5].lastModified}"
+          echo "${filesByGlob[6].name} ${filesByGlob[6].path} ${filesByGlob[6].directory} ${filesByGlob[6].length} ${filesByGlob[6].lastModified}"
+
           // Extract the path from the File found
           artifactPath = filesByGlob[0].path;
           // Assign to a boolean response verifying If the artifact name exists
@@ -146,12 +153,6 @@ pipeline {
               classifier: '',
               file: artifactPath,
               type: "jar"
-              ],
-              // Lets upload the pom.xml file for additional information for Transitive dependencies
-              [artifactId: pom.artifactId,
-              classifier: '',
-              file: "pom.xml",
-              type: "pom"
               ]
             ]
             )
