@@ -72,7 +72,7 @@ pipeline {
       post {
         success {
         stash(name: 'artifact', includes: '**/target/*.jar')
-        stash(name: 'pom', includes: 'pom.xml')
+        stash(name: 'pom', includes: '**/pom.xml')
         // to add artifacts in jenkins pipeline tab (UI)
         archiveArtifacts '**/target/*.jar'
         }
@@ -122,7 +122,7 @@ pipeline {
           unstash 'pom'
           unstash 'artifact'
           // Read POM xml file using 'readMavenPom' step , this step 'readMavenPom' is included in: https://plugins.jenkins.io/pipeline-utility-steps
-          pom = readMavenPom file: "pom.xml";
+          pom = readMavenPom file: '**/pom.xml';
           // Find built artifact under target folder
           filesByGlob = findFiles(glob: "**/target/*.${pom.packaging}");
           // Print some info from the artifact found
