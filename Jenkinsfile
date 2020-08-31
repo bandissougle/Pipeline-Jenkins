@@ -1,86 +1,104 @@
 pipeline {
-  agent any
-  environment{
-    // This can be nexus3 or nexus2
-    NEXUS_VERSION = "nexus3"
-    // This can be http or https
-    NEXUS_PROTOCOL = "http"
-    // Where your Nexus is running. In my case:
-    NEXUS_URL = "172.22.100.24:8081"
-    // Repository where we will upload the artifact
-    NEXUS_REPOSITORY = "maven-snapshots"
-    // Jenkins credential id to authenticate to Nexus OSS
-    NEXUS_CREDENTIAL_ID = "nexus-credentials"
+ agent any
+ environment {
+  // This can be nexus3 or nexus2
+  NEXUS_VERSION = "nexus3"
+  // This can be http or https
+  NEXUS_PROTOCOL = "http"
+  // Where your Nexus is running. In my case:
+  NEXUS_URL = "496c36df0cfb.ngrok.io"
+  // Repository where we will upload the artifact
+  NEXUS_REPOSITORY = "maven-snapshots"
+  // Jenkins credential id to authenticate to Nexus OSS
+  NEXUS_CREDENTIAL_ID = "nexus-credentials"
+ }
+ options {
+  skipDefaultCheckout()
+ }
+ stages {
+  stage('SCM') {
+   steps {
+    checkout scm
+   }
   }
-  stages {
-    stage('SCM') {
-      steps {
-        checkout scm
-      }
-    } 
+  stage('Build') {
+   parallel {
     stage('Compile') {
-      agent {
-        docker {
-        image 'maven:3.6.0-jdk-8-alpine'
-        args '-v /root/.m2/repository:/root/.m2/repository'
-        // to use the same node and workdir defined on top-level pipeline for all docker agents
-        reuseNode true
-        }
+     agent {
+      docker {
+       image 'maven:3.6.0-jdk-8-alpine'
+       args '-v /root/.m2/repository:/root/.m2/repository'
+       // to use the same node and workdir defined on top-level pipeline for all docker agents
+       reuseNode true
       }
-      steps { 
-        sh "mvn clean compile -Dhttps.protocols=TLSv1.2 \
-        -Dmaven.repo.local=/root/.m2/repository \
-        -Dorg.slf4j.simpleLogger.log.org.apache.maven.cli.transfer.Slf4jMavenTransferListener=WARN \
-        -Dorg.slf4j.simpleLogger.showDateTime=true \
-        -Djava.awt.headless=true \
-        --batch-mode --errors --fail-at-end --show-version -DinstallAtEnd=true -DdeployAtEnd=true"
-      }
+     }
+     steps {
+      sh ' mvn clean compile'
+     }
     }
-    stage('Tests Unitaires'){
-      agent {
-        docker {
-        image 'maven:3.6.0-jdk-8-alpine'
-        args '-v /root/.m2/repository:/root/.m2/repository'
-        reuseNode true
-        }
+    stage('CheckStyle') {
+     agent {
+      docker {
+       image 'maven:3.6.0-jdk-8-alpine'
+       args '-v /root/.m2/repository:/root/.m2/repository'
+       reuseNode true
       }
-      steps {
-        sh "mvn test -Dhttps.protocols=TLSv1.2 \
-        -Dmaven.repo.local=/root/.m2/repository \
-        -Dorg.slf4j.simpleLogger.log.org.apache.maven.cli.transfer.Slf4jMavenTransferListener=WARN \
-        -Dorg.slf4j.simpleLogger.showDateTime=true \
-        -Djava.awt.headless=true \
-        --batch-mode --errors --fail-at-end --show-version -DinstallAtEnd=true -DdeployAtEnd=true"
-      }
-      post {
-        always {
-        junit '**/target/surefire-reports/**/*.xml'
-        }
-      }
+     }
+     steps {
+      sh ' mvn checkstyle:checkstyle'
+     }
     }
-    stage('Integration Tests') {
-      agent {
-        docker {
-        image 'maven:3.6.0-jdk-8-alpine'
-        args '-v /root/.m2/repository:/root/.m2/repository'
-        reuseNode true
-        }
-      }
-      steps {
-        sh 'mvn verify -Dsurefire.skip=true'
-      }
-      post {
-        success {
-        stash(name: 'artifact', includes: '**/target/*.jar')
-        stash(name: 'pom', includes: '**/pom.xml')
-        // to add artifacts in jenkins pipeline tab (UI)
-        archiveArtifacts '**/target/*.jar'
-        }
-      }
+   }
+  }
+  stage('Unit Tests') {
+   when {
+    anyOf { branch 'master'; branch 'develop' }
+   }
+   agent {
+    docker {
+     image 'maven:3.6.0-jdk-8-alpine'
+     args '-v /root/.m2/repository:/root/.m2/repository'
+     reuseNode true
     }
-    stage('Code Analysis'){
-      parallel{
-        stage('Next Plugin Analysis'){
+   }
+   steps {
+    sh 'mvn test'
+   }
+   post {
+    always {
+     junit 'target/surefire-reports/**/*.xml'
+    }
+   }
+  }
+  stage('Integration Tests') {
+   when {
+    anyOf { branch 'master'; branch 'develop' }
+   }
+   agent {
+    docker {
+     image 'maven:3.6.0-jdk-8-alpine'
+     args '-v /root/.m2/repository:/root/.m2/repository'
+     reuseNode true
+    }
+   }
+   steps {
+    sh 'mvn verify -Dsurefire.skip=true'
+   }
+   post {
+    always {
+     junit 'target/failsafe-reports/**/*.xml'
+    }
+    success {
+     stash(name: 'artifact', includes: 'target/*.war')
+     stash(name: 'pom', includes: 'pom.xml')
+     // to add artifacts in jenkins pipeline tab (UI)
+     archiveArtifacts 'target/*.war'
+    }
+   }
+  }
+  stage('Code Quality Analysis') {
+   parallel {
+    stage('Next Plugin Analysis'){
           agent {
             docker {
             image 'maven:3.6.0-jdk-8-alpine'
@@ -102,65 +120,145 @@ pipeline {
               recordIssues enabledForFailure: true, tool: pmdParser(pattern: '**/target/pmd.xml')
             }
           }
-        }
-        stage('Code Quality Check via SonarQube'){
-          steps{
-            withSonarQubeEnv("sonarqube-server"){
-              sh "/var/jenkins_home/apache-maven-3.6.3/bin/mvn sonar:sonar -Dsonar.host.url=http://172.22.100.22:9000 \
-              -Dsonar.login=b43af443b842eda3063651b5c68115cb1a7c6b87"
-            }
-          }
-        }     
-      }
     }
-    stage('Deploiement des Artefacts sur Nexus'){
-      when {
-        anyOf { branch 'master' }
+    stage('JavaDoc') {
+     agent {
+      docker {
+       image 'maven:3.6.0-jdk-8-alpine'
+       args '-v /root/.m2/repository:/root/.m2/repository'
+       reuseNode true
       }
+     }
+     steps {
+      sh ' mvn javadoc:javadoc'
+      step([$class: 'JavadocArchiver', javadocDir: './target/site/apidocs', keepAll: 'true'])
+     }
+    }
+    stage('SonarQube') {
       steps{
-        script {
-          unstash 'pom'
-          unstash 'artifact'
-          // Read POM xml file using 'readMavenPom' step , this step 'readMavenPom' is included in: https://plugins.jenkins.io/pipeline-utility-steps
-          pom = readMavenPom file: 'pom.xml';
-          // Find built artifact under target folder
-          filesByGlob = findFiles(glob: '**/target/*.jar');
-          // Print some info from the artifact found
-          echo "${filesByGlob[0].name} ${filesByGlob[0].path} ${filesByGlob[0].directory} ${filesByGlob[0].length} ${filesByGlob[0].lastModified}"
-          echo "${filesByGlob[1].name} ${filesByGlob[1].path} ${filesByGlob[1].directory} ${filesByGlob[1].length} ${filesByGlob[1].lastModified}"
-          echo "${filesByGlob[2].name} ${filesByGlob[2].path} ${filesByGlob[2].directory} ${filesByGlob[2].length} ${filesByGlob[2].lastModified}"
-          echo "${filesByGlob[3].name} ${filesByGlob[3].path} ${filesByGlob[3].directory} ${filesByGlob[3].length} ${filesByGlob[3].lastModified}"
-          echo "${filesByGlob[4].name} ${filesByGlob[4].path} ${filesByGlob[4].directory} ${filesByGlob[4].length} ${filesByGlob[4].lastModified}"
-          echo "${filesByGlob[5].name} ${filesByGlob[5].path} ${filesByGlob[5].directory} ${filesByGlob[5].length} ${filesByGlob[5].lastModified}"
-          echo "${filesByGlob[6].name} ${filesByGlob[6].path} ${filesByGlob[6].directory} ${filesByGlob[6].length} ${filesByGlob[6].lastModified}"
-
-          // Extract the path from the File found
-          artifactPath = filesByGlob[0].path;
-          // Assign to a boolean response verifying If the artifact name exists
-          artifactExists = fileExists artifactPath;
-          if (artifactExists) {
-            nexusArtifactUploader(
-            nexusVersion: NEXUS_VERSION,
-            protocol: NEXUS_PROTOCOL,
-            nexusUrl: NEXUS_URL,
-            groupId: pom.groupId,
-            version: pom.version,
-            repository: NEXUS_REPOSITORY,
-            credentialsId: NEXUS_CREDENTIAL_ID,
-            artifacts: [
-              // Artifact generated such as .jar, .ear and .war files.
-              [artifactId: pom.artifactId,
-              classifier: '',
-              file: artifactPath,
-              type: "jar"
-              ]
-            ]
-            )
-          } else {
-            error "*** File: ${artifactPath}, could not be found";
-          }
+        withSonarQubeEnv("sonarqube-server"){
+          sh "/var/jenkins_home/apache-maven-3.6.3/bin/mvn sonar:sonar -Dsonar.host.url=http://172.22.100.22:9000 \
+          -Dsonar.login=b43af443b842eda3063651b5c68115cb1a7c6b87"
         }
       }
     }
+   }
   }
+  stage('Deploy Artifact To Nexus') {
+   when {
+    anyOf { branch 'master'; branch 'develop' }
+   }
+   steps {
+    script {
+     unstash 'pom'
+     unstash 'artifact'
+     // Read POM xml file using 'readMavenPom' step , this step 'readMavenPom' is included in: https://plugins.jenkins.io/pipeline-utility-steps
+     pom = readMavenPom file: "pom.xml";
+     // Find built artifact under target folder
+     filesByGlob = findFiles(glob: "target/*.${pom.packaging}");
+     // Print some info from the artifact found
+     echo "${filesByGlob[0].name} ${filesByGlob[0].path} ${filesByGlob[0].directory} ${filesByGlob[0].length} ${filesByGlob[0].lastModified}"
+     // Extract the path from the File found
+     artifactPath = filesByGlob[0].path;
+     // Assign to a boolean response verifying If the artifact name exists
+     artifactExists = fileExists artifactPath;
+     if (artifactExists) {
+      nexusArtifactUploader(
+       nexusVersion: NEXUS_VERSION,
+       protocol: NEXUS_PROTOCOL,
+       nexusUrl: NEXUS_URL,
+       groupId: pom.groupId,
+       version: pom.version,
+       repository: NEXUS_REPOSITORY,
+       credentialsId: NEXUS_CREDENTIAL_ID,
+       artifacts: [
+        // Artifact generated such as .jar, .ear and .war files.
+        [artifactId: pom.artifactId,
+         classifier: '',
+         file: artifactPath,
+         type: pom.packaging
+        ],
+        // Lets upload the pom.xml file for additional information for Transitive dependencies
+        [artifactId: pom.artifactId,
+         classifier: '',
+         file: "pom.xml",
+         type: "pom"
+        ]
+       ]
+      )
+     } else {
+      error "*** File: ${artifactPath}, could not be found";
+     }
+    }
+   }
+  }
+  stage('Deploy to Staging Servers') {
+   when {
+    anyOf { branch 'master'; branch 'develop' }
+   }
+   agent {
+    docker {
+     image 'ahmed24khaled/ansible-management'
+     reuseNode true
+    }
+   }
+   steps {
+    script {
+
+     pom = readMavenPom file: "pom.xml"
+     repoPath = "${pom.groupId}".replace(".", "/") + "/${pom.artifactId}"
+     version = pom.version
+     artifactId = pom.artifactId
+     withEnv(["ANSIBLE_HOST_KEY_CHECKING=False", "APP_NAME=${artifactId}", "repoPath=${repoPath}", "version=${version}"]) {
+      sh '''
+      
+        curl --silent "http://$NEXUS_URL/repository/maven-snapshots/${repoPath}/${version}/maven-metadata.xml" > tmp &&
+        egrep '<value>+([0-9\\-\\.]*)' tmp > tmp2 &&
+        tail -n 1 tmp2 > tmp3 &&
+        tr -d "</value>[:space:]" < tmp3 > tmp4 &&
+        REPO_VERSION=$(cat tmp4) &&
+
+        export APP_SRC_URL="http://${NEXUS_URL}/repository/maven-snapshots/${repoPath}/${version}/${APP_NAME}-${REPO_VERSION}.war" &&
+        ansible-playbook -v -i ./ansible_provisioning/hosts --extra-vars "host=staging" ./ansible_provisioning/playbook.yml 
+
+       '''
+     }
+    }
+   }
+  }
+  stage('Deploy to Prod Servers') {
+    when {
+    branch 'master'
+   }
+   agent {
+    docker {
+     image 'ahmed24khaled/ansible-management'
+     reuseNode true
+    }
+   }
+   steps {
+    script {
+
+     pom = readMavenPom file: "pom.xml"
+     repoPath = "${pom.groupId}".replace(".", "/") + "/${pom.artifactId}"
+     version = pom.version
+     artifactId = pom.artifactId
+     withEnv(["ANSIBLE_HOST_KEY_CHECKING=False", "APP_NAME=${artifactId}", "repoPath=${repoPath}", "version=${version}"]) {
+      sh '''
+      
+        curl --silent "$NEXUS_URL/repository/maven-snapshots/${repoPath}/${version}/maven-metadata.xml" > tmp &&
+        egrep '<value>+([0-9\\-\\.]*)' tmp > tmp2 &&
+        tail -n 1 tmp2 > tmp3 &&
+        tr -d "</value>[:space:]" < tmp3 > tmp4 &&
+        REPO_VERSION=$(cat tmp4) &&
+
+        export APP_SRC_URL="http://${NEXUS_URL}/repository/maven-snapshots/${repoPath}/${version}/${APP_NAME}-${REPO_VERSION}.war" &&
+        ansible-playbook -v -i ./ansible_provisioning/hosts --extra-vars "host=production" ./ansible_provisioning/playbook.yml 
+
+       '''
+     }
+    }
+   }
+  }
+ }
 }
